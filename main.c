@@ -29,8 +29,13 @@ void usage(const char *progname) {
 }
 
 void *sock_consume(void *arg){ // NOTE: arg will be a pointer to the linked list of available sockets.
+	linkedlist socks = (linkedlist)*arg;
 	while(still_running){
-
+		pthread_mutex_lock(&socks->listlock,NULL);
+		while(socks->tail==NULL){
+			pthread_cond_wait(&listempty,&listlock);
+		}
+		
 	}
 	return;
 }
@@ -40,7 +45,8 @@ void runserver(int numthreads, unsigned short serverport) {
 
 	linkedlist socks;
 	socks->head = NULL;
-
+	pthread_mutex_init(&socks->listlock, NULL);
+	pthread_cond_init(&socks->listempty,NULL);
     // create your pool of threads here
 	if(numthreads == NULL || numthreads<1){
 		numthreads = 1;
@@ -48,7 +54,7 @@ void runserver(int numthreads, unsigned short serverport) {
 	pthread_t threads[numthreads];
 	int i = 0;
 	for(; i < numthreads; i++){
-		pthread_create(&threads[i], NULL, sock_consume, (void*)socks);
+		pthread_create(&threads[i], NULL, sock_consume, (void*)&socks);
 	}
 
     //////////////////////////////////////////////////

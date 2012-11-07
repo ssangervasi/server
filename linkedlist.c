@@ -1,12 +1,11 @@
 #include "linkedlist.h"
     
     
-void list_insert(int socket, struct node **head) {
+void list_insert(int socket, struct node **tail) {
      struct node *newnode = malloc(sizeof(struct node));
-     strncpy(newnode->socket, socket, 127);
-     newnode->next = *head;
-     *head = newnode;
-	 (*head)->next = NULL;
+     newnode->next = *tail;
+     newnode->socket=socket;
+     *tail = newnode;
 }
  
 void list_clear(struct node *list) {
@@ -17,23 +16,9 @@ void list_clear(struct node *list) {
     }
 }
 
-void list_remove(int socket, struct node **head) {
-    struct node *drop = *head;
-	struct node *prev = *head;
-	if(strcmp(drop->socket, socket) == 0){
-		*head = (*head)->next;
-		free(drop);
-		return;
-	}
-	while((drop)!= NULL && strcmp(drop->socket, socket) != 0){
-		prev = drop;		
-		drop = drop->next;
-
-	}
-    if(drop!=NULL){
-		prev->next = drop->next;
-		free(drop);
-	}
-	return;
+int list_remove( struct node **head) {
+    int sockval = (**head)->socket;
+    *head = NUll;
+	return sockval;
 }
 

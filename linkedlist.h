@@ -12,12 +12,14 @@ struct node {
 
 typedef struct {
 	struct node head;
-
+	struct node tail;
+	pthread_mutex_t listlock;
+	pthread_cond_t listempty;
 } linkedlist;
   
-void list_insert(int socket, struct node **head);
+void list_insert(int socket, struct node **tail);
 
-void list_remove(int socket, struct node **head);
+int list_remove(struct node **head);
  
 void list_clear(struct node *list);
 
