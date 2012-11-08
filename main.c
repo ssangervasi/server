@@ -29,13 +29,23 @@ void usage(const char *progname) {
 }
 
 void *sock_consume(void *arg){ // NOTE: arg will be a pointer to the linked list of available sockets.
+	int newsock = 0;
 	linkedlist socks = (linkedlist)*arg;
 	while(still_running){
 		pthread_mutex_lock(&socks->listlock,NULL);
 		while(socks->tail==NULL){
 			pthread_cond_wait(&listempty,&listlock);
 		}
-		
+		newsock = list_remove(&socks->head);
+		pthread_mutex_unlock(&socks->listlock);
+		char* buffer = malloc(sizeof(char)*1024);
+		if(getrequest(newsock,buffer,1024)==0){
+			char* filename = buffer;
+			if(buffer[0] == '\') {
+				filename = buffer + 1;		
+			}
+			
+		}	
 	}
 	return;
 }
