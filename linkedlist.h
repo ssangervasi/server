@@ -7,6 +7,8 @@
 struct node {
 	int socket;
     struct node *next;
+	char* ip;
+	int port;
 };
  
 

@@ -7,6 +7,7 @@
 struct node {
 	int socket;
     struct node *next;
+	char* ip;
 };
  
 
@@ -19,7 +20,7 @@ typedef struct {
   
 void list_insert(int socket, struct node **tail);
 
-void list_remove(int socket, struct node **head);
+int list_remove(struct node **head);
  
 void list_clear(struct node *list);
 

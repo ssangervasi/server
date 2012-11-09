@@ -9,7 +9,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
-
+#include <sys/types.h>
 #include "network.h"
 
 
@@ -44,8 +44,42 @@ void *sock_consume(void *arg){ // NOTE: arg will be a pointer to the linked list
 			if(buffer[0] == '\') {
 				filename = buffer + 1;		
 			}
+			char * request = NULL; //What is going to be passed to sendata (either the 200 or 404)
+			struct stat *finfo = malloc(sizeof(struct stat));
+			if(0 == stat((const char*)filename, finfo)){
+				int size = (int)((*finfo)->st_size);
+				//Fill request with the HTTP header.
+				char* header = malloc(sizeof(char)*(strlen(HTTP_200)));
+				sprintf(header, HTTP_200, size);
+				int reqsize = sizeof(char)*strlen(header) + size
+				request = malloc(reqsize);
+				strcpy(request,(const char*) header);
+				int reqpos = strlen(header);
+
+				//Fill the rest of request with things from the file.
+				int fdesc = open((const char*) filename, O_SYNC); 
+				char* buf = malloc(sizeof(char)*1024);
+				int moredata = read(fdesc, (void*)buf, 1024);
+				for(; moredata>0; moredata = read(fdesc, (void*)buf, 1024)){
+					strncpy(request+reqpos, (const char*) buf, moredata);
+					reqpos+=moredata;
+				}
+				request[reqpos] = '\0';
+				senddata(newsock, (const char*) request, reqsize);
+				free(header);
+				
+			}else{
+				request = malloc(sizeof(char)*strlen(HTTP_404));
+				strcpy(request, (const char*)(HTTP_404));
+				senddata(newsock, (const char*) request, strlen(request));
+				
+			}
+			//Do the logging of stuff to the file.			
 			
-		}	
+			free(request);
+			free(finfo);
+		}
+		free(buffer);	
 	}
 	return;
 }
