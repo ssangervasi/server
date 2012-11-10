@@ -13,6 +13,11 @@
 #include "network.h"
 #include "linkedlist.h"
 
+//NICKIE AND SEBASTIAN DID THIS
+//THERE ARE PROBLEMS WITH THE PYTHON WHE WE SEND A 404 BACK TO IT. OTHERWISE IT WORKS GREAT.
+//I BLAME THE PYTHON PROGRAM FOR ANY PROBLEMS.
+
+
 // global variable; can't be avoided because
 // of asynchronous signal interaction
 int still_running = TRUE;
