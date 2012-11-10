@@ -21,8 +21,12 @@ int prepare_server_socket(unsigned short);
 int senddata(int, const char *, int);
 int getrequest(int, char *, int);
 
-#define HTTP_404 "HTTP/1.0 404 Not found\r\n\r\n"
+#define HTTP_404 "HTTP/1.0 404 Not found\r\n\r\n\0"
 #define HTTP_200 "HTTP/1.0 200 OK\r\nContent-type: text/plain\r\nContent-length: %d\r\n\r\n"
+
+#define LOG_STR "%s:%d %s \"GET %s\"%d %d\n"
+ 
+#define LOG "weblog.txt"
 
 #ifndef TRUE
 #define TRUE 1

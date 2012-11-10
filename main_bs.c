@@ -20,8 +20,6 @@ void signal_handler(int sig) {
     still_running = FALSE;
 }
 
-FILE* logfile = NULL;
-pthread_mutex_t* loglock= NULL;
 
 void usage(const char *progname) {
     fprintf(stderr, "usage: %s [-p port] [-t numthreads]\n", progname);
@@ -35,74 +33,54 @@ void* sock_consume(void *arg){ // NOTE: arg will be a pointer to the linked list
 	linkedlist* socks = (linkedlist*)(arg);
 	while(still_running){
 		pthread_mutex_lock(socks->listlock);
-		while((socks->tail)->socket == -1 && still_running == TRUE){
+		while((socks->tail)->socket == -1){
 			pthread_cond_wait(socks->listempty, socks->listlock);
 		}
-		if(still_running ==FALSE){
-			break;
-		}
-		char* ip  = strdup((((socks->head)->next)->ip));
-		int port = (((socks->head)->next)->port);
-		newsock = list_remove(&(socks->head), &(socks->tail));
+		newsock = list_remove(&socks->head);
 		pthread_mutex_unlock(socks->listlock);
-
 		char* buffer = malloc(sizeof(char)*1024);
 		if(getrequest(newsock,buffer,1024)==0){
 			char* filename = malloc(sizeof(char)*strlen(buffer));
 			if(buffer[0] == '/') {
 				strcpy(filename, (const char*)(buffer + 1));
-				//printf("_%s_\n_%s_\n",buffer, filename);		
+				printf("_%s_\n_%s_\n",buffer, filename);		
 			} else{
 				strcpy(filename, (const char*)(buffer));
 			}			
-			int endsize = 0;
-			int status = 200;
+			char * request = NULL; //What is going to be passed to sendata (either the 200 or 404)
 			struct stat *finfo = malloc(sizeof(struct stat));
 			if(0 == stat((const char*)filename, finfo)){
 				int size = (int)(finfo->st_size);
-				
+				//Fill request with the HTTP header.
 				char* header = malloc(sizeof(int)*(strlen(HTTP_200)));
 				sprintf(header, HTTP_200, size);
-				senddata(newsock, (const char*) header, strlen(header));
-				
+				int reqsize = sizeof(int)*strlen(header) + size;
+				request = malloc(reqsize);
+				strcpy(request,(const char*) header);
+				int reqpos = strlen(header);
+
+				//Fill the rest of request with things from the file.
 				int fdesc = open((const char*) filename, O_SYNC); 
 				char* buf = malloc(sizeof(char)*1024);
-				buf[1023] = '\0';
 				int moredata = read(fdesc, (void*)buf, 1024);
-				for(; moredata>0; moredata = read(fdesc, (void*)buf, 1023)){
-					senddata(newsock, (const char*)buf, moredata);
+				for(; moredata>0; moredata = read(fdesc, (void*)buf, 1024)){
+					strncpy(request+reqpos, (const char*) buf, moredata);
+					reqpos+=moredata;
 				}
-				free(buf);
+				request[reqpos] = '\0';
+				senddata(newsock, (const char*) request, reqsize);
 				close(fdesc);
-				endsize = sizeof(char)*strlen(header) + size;
 				free(header);
 				
 			}else{
-				char* tosend = strdup(HTTP_404);
-				senddata(newsock, (const char*) tosend, sizeof(char)*strlen(tosend));
-				free(tosend);
-				endsize = sizeof(char)*strlen(HTTP_404);
-				status = 404;
+				request = malloc(sizeof(char)*strlen(HTTP_404));
+				strcpy(request, (const char*)(HTTP_404));
+				senddata(newsock, (const char*) request, strlen(request));
+				
 			}
-			//Do the logging of stuff to the file.	
+			//Do the logging of stuff to the file.			
 			
-			time_t start;
-			struct tm actual;
-			char hold[80];
-			time(&start);
-			actual = *localtime(&start);
-			strftime(hold, sizeof(hold), "%a %Y-%m-%d %H:%M:%S %Z", &actual);
-			char* logstr = malloc(sizeof(char)*100);
-			sprintf(logstr, LOG_STR, ip, port, hold, filename, status, endsize);
-			printf("__%s__\n", logstr);
-
-			pthread_mutex_lock(loglock);
-			//write(logfile, (const void*) logstr, sizeof(char)*strlen(logstr));
-			fprintf(logfile, (const char*) logstr);			
-			pthread_mutex_unlock(loglock);
-			free(logstr);
-			free(ip);
-			//
+			free(request);
 			free(finfo);
 			free(filename);
 		}
@@ -122,13 +100,6 @@ void runserver(int numthreads, unsigned short serverport) {
 	pthread_mutex_init(socks->listlock, NULL);
 	socks->listempty = malloc(sizeof(pthread_cond_t));
 	pthread_cond_init(socks->listempty,NULL);
-
-	//Getting the log file ready
-	//logfile = malloc(sizeof(FILE));
-	logfile = fopen((const char*) LOG,"a");
-	loglock = malloc(sizeof(pthread_mutex_t));
-	pthread_mutex_init(loglock, NULL);	
-    //
     // create your pool of threads here
 	if(numthreads<1){
 		numthreads = 1;
@@ -141,7 +112,8 @@ void runserver(int numthreads, unsigned short serverport) {
 	}
 
     //////////////////////////////////////////////////
-	
+    
+    
     int main_socket = prepare_server_socket(serverport);
     if (main_socket < 0) {
         exit(-1);
@@ -154,18 +126,16 @@ void runserver(int numthreads, unsigned short serverport) {
     fprintf(stderr, "Server listening on port %d.  Going into request loop.\n", serverport);
     while (still_running) {
         struct pollfd pfd = {main_socket, POLLIN};
-        int prv = poll(&pfd, 1, 10000); //should be 10000
+        int prv = poll(&pfd, 1, 10000);
 
-        if (prv == 0) {				
-            still_running = FALSE;
-			pthread_cond_broadcast(socks->listempty);
-            break;
+        if (prv == 0) {
+            continue;
         } else if (prv < 0) {
             PRINT_ERROR("poll");
             still_running = FALSE;
-			pthread_cond_broadcast(socks->listempty);
-            break;
+            continue;
         }
+        
         addr_len = sizeof(client_address);
         memset(&client_address, 0, addr_len);
 
@@ -193,27 +163,20 @@ void runserver(int numthreads, unsigned short serverport) {
 
         }
     }
-	//printf("smee_\n");
-	
+
 	i = 0;
 	for(; i < numthreads; i++){
 		pthread_join(*(threads[i]), NULL);
 		free(threads[i]);	
 	}
-	//printf("smoo\n");
 	free(threads);
-
+	
 	free(socks->listlock);
 	free(socks->listempty);
-	free(socks->head);
 	free(socks);
 	
     fprintf(stderr, "Server shutting down.\n");
-	pthread_mutex_lock(loglock);
-	fclose(logfile);
-	//free(logfile);
-	pthread_mutex_unlock(loglock);
-	free(loglock);
+        
     close(main_socket);
 }
 

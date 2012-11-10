@@ -13,15 +13,15 @@ struct node {
  
 
 typedef struct {
-	struct node head;
-	struct node tail;
-	pthread_mutex_t listlock;
-	pthread_cond_t listempty;
+	struct node* head;
+	struct node* tail;
+	pthread_mutex_t* listlock;
+	pthread_cond_t* listempty;
 } linkedlist;
   
 void list_insert(int socket, struct node **tail);
 
-int list_remove(struct node **head);
+int list_remove(struct node **head, struct node **tail);
  
 void list_clear(struct node *list);
 
